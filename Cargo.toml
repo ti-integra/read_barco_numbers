@@ -1,0 +1,18 @@
+[package]
+name = "xml_ocr"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+arboard = "3.4.0"
+image = "0.25.2"
+ocrs = "0.8.0"
+regex = "1.10.6"
+rten = "0.10.0"
+rten-tensor = "0.10.0"
+rxing = "0.6.1"
+slint = "1.7.2"
+
+[build-dependencies]
+slint-build = "1.7.2"

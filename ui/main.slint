@@ -1,0 +1,25 @@
+
+import { AboutSlint, Button, VerticalBox } from "std-widgets.slint";
+
+
+export global AppField {
+    callback ocr();
+    callback barcode();
+    in property <string> field:"";
+}
+
+export component App inherits Window {
+    preferred-width: 720px;
+    preferred-height: 300px;
+    VerticalBox {
+        alignment: start;
+        HorizontalLayout {
+            alignment: center;
+            Button {
+                text: "Ler do numeros!";
+                clicked => {AppField.ocr()}
+            }
+        }
+        TextInput {text: AppField.field;}
+    }
+}
