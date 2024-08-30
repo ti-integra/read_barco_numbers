@@ -1,6 +1,10 @@
-use std::{borrow::Cow, path::PathBuf};
+#![cfg_attr(
+    all(target_os = "windows", build_release),
+    windows_subsystem = "windows"
+)]
 
-use anyhow;
+use std::borrow::Cow;
+
 use arboard::Clipboard;
 use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba};
 use ocrs::{ImageSource, OcrEngine, OcrEngineParams};
@@ -14,7 +18,7 @@ slint::include_modules!();
 const DETECTION_MODEL_DATA: &[u8] = include_bytes!("../examples/text-detection.rten");
 const RECOGNITION_MODEL_DATA: &[u8] = include_bytes!("../examples/text-recognition.rten");
 
-fn get_screenshot_from_clipboard() -> Result<DynamicImage, Box<dyn std::error::Error>> {
+fn get_screenshot_from_clipboard() -> anyhow::Result<DynamicImage> {
     let mut clipboard = Clipboard::new()?;
 
     let image_data = clipboard.get_image()?;
@@ -28,20 +32,29 @@ fn get_screenshot_from_clipboard() -> Result<DynamicImage, Box<dyn std::error::E
     };
 
     let buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width, height, buffer_data)
-        .ok_or("Falha ao criar ImageBuffer")?;
+        .ok_or_else(|| anyhow::Error::msg("Falha ao criar ImageBuffer"))?;
 
     let img = DynamicImage::ImageRgba8(buffer);
     Ok(img)
 }
 
+fn get_barcode(app: &App) -> anyhow::Result<()> {
+    let img = get_screenshot_from_clipboard()?;
+    let h = img.height();
+    let w = img.width();
+    let results =
+        rxing::helpers::detect_multiple_in_luma(img.to_luma8().into_vec(), w, h).expect("decodes");
+    let result = results
+        .first()
+        .ok_or_else(|| anyhow::Error::msg("Falha ao criar ImageBuffer"))?
+        .getText();
+
+    let tmp = SharedString::from(result);
+    app.global::<AppField>().set_field(tmp);
+    Ok(())
+}
+
 fn get_ocr(app: &App) -> anyhow::Result<()> {
-    // Use the `download-models.sh` script to download the models.
-    // let detection_model_path = file_path("examples/text-detection.rten");
-    // let rec_model_path = file_path("examples/text-recognition.rten");
-
-    // let detection_model = Model::load_file(detection_model_path)?;
-    // let recognition_model = Model::load_file(rec_model_path)?;
-
     let detection_model = Model::load(DETECTION_MODEL_DATA.to_vec())?;
     let recognition_model = Model::load(RECOGNITION_MODEL_DATA.to_vec())?;
 
@@ -52,7 +65,7 @@ fn get_ocr(app: &App) -> anyhow::Result<()> {
     })
     .unwrap();
 
-    let img = get_screenshot_from_clipboard().unwrap();
+    let img = get_screenshot_from_clipboard()?;
 
     let img_source = ImageSource::from_bytes(img.as_bytes(), img.dimensions())?;
 
@@ -89,7 +102,18 @@ fn ui_xml(app: &App) -> anyhow::Result<()> {
     app.global::<AppField>().on_ocr(move || {
         let localapp = myapp.clone_strong();
 
-        if let Err(_) = get_ocr(&localapp) {}
+        if let Err(e) = get_ocr(&localapp) {
+            eprintln!("Erro ao executar Barcode: {:?}", e);
+        }
+    });
+
+    let myapp = app.clone_strong();
+    app.global::<AppField>().on_barcode(move || {
+        let localapp = myapp.clone_strong();
+
+        if let Err(e) = get_barcode(&localapp) {
+            eprintln!("Erro ao executar Barcode: {:?}", e);
+        }
     });
     Ok(())
 }

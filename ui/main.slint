@@ -17,9 +17,21 @@ export component App inherits Window {
             alignment: center;
             Button {
                 text: "Ler do numeros!";
-                clicked => {AppField.ocr()}
+                clicked => {
+                    AppField.ocr()
+                }
+            }
+
+            Button {
+                text: "Ler codigo!";
+                clicked => {
+                    AppField.barcode()
+                }
             }
         }
-        TextInput {text: AppField.field;}
+
+        TextInput {
+            text: AppField.field;
+        }
     }
 }
